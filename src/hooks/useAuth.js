@@ -1,29 +1,37 @@
-import { useState, useEffect } from "react";
-import axios from "axios";
+import { useState, useEffect, createContext, useContext } from "react";
+import Cookies from "js-cookie";
 
-export default function useAuth() {
+const AuthContext = createContext(null);
+
+export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const res = await axios.get("/api/auth/me"); // Ensure this route is correct
-        setUser(res.data.user);
-      } catch (error) {
-        setUser(null);
-      }
-    };
-    fetchUser();
+    // Check if user is stored in cookies
+    const storedUser = Cookies.get("user");
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
   }, []);
 
-  const logout = async () => {
-    try {
-      await axios.post("/api/auth/logout");
-      setUser(null);
-    } catch (error) {
-      console.error("Logout failed", error);
-    }
+  const login = (userData) => {
+    setUser(userData);
+    Cookies.set("user", JSON.stringify(userData), { expires: 7 });
   };
 
-  return { user, logout }; // ✅ Ensure you return both user & logout
+  const logout = () => {
+    setUser(null);
+    Cookies.remove("user");
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, login, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+// Custom hook to use the AuthContext
+export default function useAuth() {
+  return useContext(AuthContext);
 }
